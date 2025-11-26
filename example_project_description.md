@@ -1,29 +1,85 @@
 # Project Description
 
-**Deployed Frontend URL:** LINK
+**Deployed Frontend URL:https://school-of-solana-season-8-program-s.vercel.app/
 
-**Solana Program ID:** ID
+**Solana Program ID:75zeKfzrc1CzfcC6fDT3gYwTeYgqMoEkfSjbLHMykaVE
 
 ## Project Overview
 
 ### Description
-A simple decentralized counter application built on Solana. Users can create personal counters, increment them, and reset them to zero. Each user has their own counter account derived from their wallet address, ensuring data isolation and ownership. This dApp demonstrates basic Solana program development concepts including PDAs, account creation, and state management.
+Tip Oracle is a decentralized Solana-based application that allows users to send SOL tips to another wallet with full on-chain transparency. The dApp uses PDAs to track and record tip statistics such as total tips, amounts, and user history.
+
+The frontend is built with Next.js + Wallet Adapter, while the smart contract is developed using Anchor. The goal of this project is to demonstrate secure Solana transactions, PDA-based state management, and real-time UI synchronization with on-chain data.
 
 ### Key Features
-- **Create Counter**: Initialize a new counter account for your wallet
-- **Increment Counter**: Add 1 to your personal counter value
-- **Reset Counter**: Set your counter back to 0
-- **View Counter**: Display current counter value and owner information
+1️⃣ Send Tips On-Chain
+
+Users can send SOL to any creator wallet using a single Solana transaction.
+
+2️⃣ PDA-Based Stat Tracking
+
+Each user gets an on-chain PDA that stores:
+
+Total tips sent
+
+Total SOL amount tipped
+
+Last tipped timestamp
+
+3️⃣ Wallet-Based Authentication
+
+No login system — the user's Solana wallet acts as their identity.
+
+4️⃣ Instant Real-Time Updates
+
+After each tip:
+
+Transaction is confirmed
+
+PDA data is re-fetched
+
+UI updates instantly
+
+5️⃣ Secure + Gas Efficient
+
+Only the PDA owner can update their tipping history.
+
+Uses minimal compute and rent-exempt account sizes.
 
 ### How to Use the dApp
-1. **Connect Wallet** - Connect your Solana wallet
-2. **Initialize Counter** - Click "Create Counter" to set up your personal counter account
-3. **Increment** - Use the "+" button to increase your counter value
-4. **Reset** - Click "Reset" to set your counter back to 0
-5. **View Stats** - See your current count and total increments made
+User connects their wallet
+
+App derives PDA for the user
+
+If PDA doesn’t exist → show “Initialize Tip Account”
+
+User enters:
+
+Receiver wallet
+
+Amount
+
+Optional message
+
+When "Send Tip" is clicked:
+
+SOL transfer happens
+
+PDA stats update
+
+UI refreshes with latest values
 
 ## Program Architecture
-The Counter dApp uses a simple architecture with one main account type and three core instructions. The program leverages PDAs to create unique counter accounts for each user, ensuring data isolation and preventing conflicts between different users' counters.
+User Clicks "Send Tip"
+      ↓
+Wallet Adapter prompts signature
+      ↓
+Program validates PDA → updates stats
+      ↓
+SOL transfer executes
+      ↓
+Frontend fetches PDA → updates UI
+file:///home/rahul-patle/Pictures/Screenshots/Screenshot%20from%202025-11-27%2000-22-59.png
 
 ### PDA Usage
 The program uses Program Derived Addresses to create deterministic counter accounts for each user.
@@ -36,15 +92,53 @@ The program uses Program Derived Addresses to create deterministic counter accou
 - **Initialize**: Creates a new counter account for the user with initial value of 0
 - **Increment**: Increases the counter value by 1 and tracks total increments
 - **Reset**: Sets the counter value back to 0 while preserving the owner information
+🧠 Problems Solved & How
+1️⃣ Secure Payments Without Backend
 
+❌ Problem: Traditional apps need backend to process payments
+✅ Solution: Solana transfer directly from wallet → wallet (no backend)
+
+2️⃣ Transaction Confirmation Reliability
+
+❌ Problem: Solana is async, UI may show wrong state
+✅ Solution:
+
+connection.confirmTransaction(signature, "finalized")
+
+Toast notifications
+
+3️⃣ Wallet Connection Handling
+
+❌ Problem: Phantom sometimes doesn’t auto-connect
+✅ Solution:
+
+Wallet Adapter autoConnect + hooks
+
+Graceful fallback UI
+
+4️⃣ Clean and Modern UI for Non-Tech Users
+
+❌ Problem: Web3 UIs often confusing
+✅ Solution:
+
+Card-based UI
+
+Clear tip options
+
+One-click actions
+
+5️⃣ Low-Fee Tipping System
+
+❌ Problem: Ethereum fees too high for micro-tips
+✅ Solved: Solana transaction ≈ $0.0002
 ### Account Structure
 ```rust
 #[account]
-pub struct Counter {
-    pub owner: Pubkey,        // The wallet that owns this counter
-    pub count: u64,           // Current counter value
-    pub total_increments: u64, // Total number of times incremented (persists through resets)
-    pub created_at: i64,      // Unix timestamp when counter was created
+pub struct CreatorAccount {
+    pub total_tips: u64,
+    pub last_tipper: Pubkey,
+    pub creator: Pubkey,   // REQUIRED FOR has_one
+    pub bump: u8,
 }
 ```
 
@@ -52,17 +146,26 @@ pub struct Counter {
 
 ### Test Coverage
 Comprehensive test suite covering all instructions with both successful operations and error conditions to ensure program security and reliability.
+<img width="1920" height="1080" alt="Screenshot from 2025-11-26 23-26-47" src="https://github.com/user-attachments/assets/ee1c1495-7017-4123-b7ea-feb9430df38c" />
 
-**Happy Path Tests:**
-- **Initialize Counter**: Successfully creates a new counter account with correct initial values
-- **Increment Counter**: Properly increases count and total_increments by 1
-- **Reset Counter**: Sets count to 0 while preserving owner and total_increments
 
-**Unhappy Path Tests:**
-- **Initialize Duplicate**: Fails when trying to initialize a counter that already exists
-- **Increment Unauthorized**: Fails when non-owner tries to increment someone else's counter
-- **Reset Unauthorized**: Fails when non-owner tries to reset someone else's counter
-- **Account Not Found**: Fails when trying to operate on non-existent counter
+Happy Path Tests:
+
+Initialize Creator PDA: Successfully creates the creator PDA with correct seeds and default values
+
+Send Tip: Correctly transfers SOL to the creator PDA and updates balance
+
+Withdraw Tips: Allows the creator to withdraw accumulated tips into their wallet
+
+Unhappy Path Tests:
+
+Initialize Wrong PDA: Fails when PDA is derived using incorrect seeds
+
+Tip Overflow: Fails when user tries to tip more SOL than their balance
+
+Unauthorized Withdraw: Fails when someone other than the creator tries to withdraw tips
+
+PDA Not Found: Fails when sending a tip to a non-existent or uninitialized creator PDA
 
 ### Running Tests
 ```bash
